@@ -84,9 +84,9 @@ python model_pretrain.py \
 # finetune vivit with imagenet pretrain weights
 python model_pretrain.py \
 	-lr 0.005 -epoch 30 -batch_size 8 -num_workers 4 -num_frames 16 -frame_interval 16 -num_class 400 \
-	-arch 'vivit' -attention_type 'fact_encoder' -optim_type 'sgd' -lr_schedule 'cosine' \
-	-objective 'supervised' -root_dir $ROOT_DIR -train_data_path $TRAIN_DATA_PATH \
-	-val_data_path $VAL_DATA_PATH -pretrain_pth $PRETRAIN_WEIGHTS -weights_from 'imagenet'
+	-arch vivit -attention_type fact_encoder -optim_type sgd -lr_schedule cosine \
+	-objective supervised -root_dir $ROOT_DIR -train_data_path $TRAIN_DATA_PATH \
+	-val_data_path $VAL_DATA_PATH -pretrain_pth $PRETRAIN_WEIGHTS -weights_from imagenet
 
 ```
 The minimal folder structure will look like as belows.

@@ -1,3 +1,5 @@
+import hashlib
+import json
 import os
 import time
 import random
@@ -85,6 +87,9 @@ def parse_args():
 		'-test_data_path', type=str, default=None,
 		help='the path to test set')
 	parser.add_argument(
+		'-class_path', type=str, default='./k400_classmap.json',
+		help='the path to classes file, json or txt (one class a line)')
+	parser.add_argument(
 		'-multi_crop', type=bool, default=False, 
 		help="""Whether or not to use multi crop.""")
 	parser.add_argument(
@@ -165,18 +170,22 @@ def single_run():
 
 	# Experiment Settings
 	ROOT_DIR = args.root_dir
-	exp_tag = (f'objective_{args.objective}_arch_{args.arch}_lr_{args.lr}_'
+	exp_tag = hashlib.md5((f'objective_{args.objective}_arch_{args.arch}_lr_{args.lr}_'
 			   f'optim_{args.optim_type}_lr_schedule_{args.lr_schedule}_'
 			   f'fp16_{args.use_fp16}_weight_decay_{args.weight_decay}_'
 			   f'weight_decay_end_{args.weight_decay_end}_warmup_epochs_{args.warmup_epochs}_'
 			   f'pretrain_{args.pretrain_pth}_weights_from_{args.weights_from}_seed_{args.seed}_'
 			   f'img_size_{args.img_size}_num_frames_{args.num_frames}_eval_metrics_{args.eval_metrics}_'
 			   f'frame_interval_{args.frame_interval}_mixup_{args.mixup}_'
-			   f'multi_crop_{args.multi_crop}_auto_augment_{args.auto_augment}_')
-	ckpt_dir = os.path.join(ROOT_DIR, f'results/{exp_tag}/ckpt')
-	log_dir = os.path.join(ROOT_DIR, f'results/{exp_tag}/log')
+			   f'multi_crop_{args.multi_crop}_auto_augment_{args.auto_augment}_').encode()).hexdigest()
+	exp_dir = os.path.join(ROOT_DIR, f'results/{exp_tag}')
+	ckpt_dir = os.path.join(exp_dir, 'ckpt')
+	log_dir = os.path.join(exp_dir, 'log')
 	os.makedirs(ckpt_dir, exist_ok=True)
 	os.makedirs(log_dir, exist_ok=True)
+
+	with open(os.path.join(exp_dir, 'config.json'), 'w') as f:
+		json.dump(vars(args), f)
 
 	# Data
 	do_eval = True if args.val_data_path is not None else False

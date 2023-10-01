@@ -1,0 +1,5 @@
+.idea
+data/
+results/
+pretrained/
+lightning_logs/

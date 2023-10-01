@@ -141,7 +141,7 @@ class VideoTransformer(pl.LightningModule):
 			inputs, labels, = *batch,
 			if self.configs.mixup and train:
 				inputs, labels = self.mixup_fn(inputs, labels)
-			return inputs, labels
+			return inputs, labels.long()
 
 	# epoch schedule
 	def _get_momentum(self, base_value, final_value):
@@ -282,7 +282,6 @@ class VideoTransformer(pl.LightningModule):
 			# save best checkpoint
 			if mean_top1_acc > self.max_top1_acc:
 				save_path = osp.join(self.ckpt_dir,
-									 f'{timestamp}_'+
 									 f'ep_{self.trainer.current_epoch}_'+
 									 f'top1_acc_{mean_top1_acc:.3f}.pth')
 				self.trainer.save_checkpoint(save_path)

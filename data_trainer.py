@@ -83,7 +83,7 @@ class KineticsDataModule(pl.LightningDataModule):
 			interpolation='bicubic',
 			mean=mean,
 			std=std)
-		train_temporal_sample = T.TemporalRandomCrop(
+		train_temporal_sample = T.TemporalRandomCropWithRange(
 			self.configs.num_frames * self.configs.frame_interval)
 			
 		self.train_dataset = self.get_dataset(
@@ -98,7 +98,7 @@ class KineticsDataModule(pl.LightningDataModule):
 				interpolation='bicubic',
 				mean=mean,
 				std=std)
-			val_temporal_sample = T.TemporalRandomCrop(
+			val_temporal_sample = T.TemporalRandomCropWithRange(
 				self.configs.num_frames * self.configs.frame_interval)
 			self.val_dataset = self.get_dataset(
 				self.val_ann_path,
@@ -113,7 +113,7 @@ class KineticsDataModule(pl.LightningDataModule):
 				T.ToTensor(),
 				T.Normalize(mean, std),
 				])
-			test_temporal_sample = T.TemporalRandomCrop(
+			test_temporal_sample = T.TemporalRandomCropWithRange(
 				self.configs.num_frames * self.configs.frame_interval)
 			self.test_dataset = self.get_dataset(
 				self.test_ann_path,

@@ -128,7 +128,7 @@ def init_from_vit_pretrain_(module,
 			if conv_type == 'Conv3d':
 				if 'patch_embed.projection.weight' in old_key:
 					weight = state_dict[old_key]
-					new_weight = repeat(weight, 'd c h w -> d c t h w', t=tube_size)
+					new_weight = repeat(weight, 'd c t h w -> d c t h w', t=tube_size)
 					if extend_strategy == 'temporal_avg':
 						new_weight = new_weight / tube_size
 					elif extend_strategy == 'center_frame':

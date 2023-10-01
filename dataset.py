@@ -47,8 +47,11 @@ def extract_hog_features(image):
 
 def load_annotation_data(data_file_path):
 	with open(data_file_path, 'r') as data_file:
-		return json.load(data_file)
-
+		if data_file_path.endswith('.json'):
+			return json.load(data_file)
+		else:
+			classes = data_file.readlines()
+			return {c.strip(): i for i, c in enumerate(classes)}
 
 def get_class_labels(num_class, anno_pth='./k400_classmap.json'):
 	global class_labels_map, cls_sample_cnt
@@ -63,19 +66,29 @@ def get_class_labels(num_class, anno_pth='./k400_classmap.json'):
 		return class_labels_map, cls_sample_cnt
 
 
-def load_annotations(ann_file, num_class, num_samples_per_cls):
+def load_annotations(ann_file, num_class, num_samples_per_cls, class_pth='./k400_classmap.json'):
 	dataset = []
-	class_to_idx, cls_sample_cnt = get_class_labels(num_class)
+	class_to_idx, cls_sample_cnt = get_class_labels(num_class, class_pth)
 	with open(ann_file, 'r') as fin:
 		for line in fin:
-			line_split = line.strip().split('\t')
+			line_split = line.strip().split(',')
 			sample = {}
 			idx = 0
 			# idx for frame_dir
 			frame_dir = line_split[idx]
 			sample['video'] = frame_dir
 			idx += 1
-								
+
+			# idx for start
+			start = line_split[idx]
+			sample['start'] = int(start)
+			idx += 1
+
+			# idx for end
+			end = line_split[idx]
+			sample['end'] = int(end)
+			idx += 1
+
 			# idx for label[s]
 			label = [x for x in line_split[idx:]]
 			assert label, f'missing label in line: {line}'
@@ -137,7 +150,7 @@ class Kinetics(torch.utils.data.Dataset):
 				 transform=None,
 				 temporal_sample=None):
 		self.configs = configs
-		self.data = load_annotations(annotation_path, self.configs.num_class, self.configs.num_samples_per_cls)
+		self.data = load_annotations(annotation_path, self.configs.num_class, self.configs.num_samples_per_cls, self.configs.class_path)
 
 		self.transform = transform
 		self.temporal_sample = temporal_sample
@@ -153,11 +166,12 @@ class Kinetics(torch.utils.data.Dataset):
 		while True:
 			try:
 				path = self.data[index]['video']
+				start_frame = self.data[index]['start']
+				end_frame = self.data[index]['end']
 				v_reader = self.v_decoder(path)
-				total_frames = len(v_reader)
 				
 				# Sampling video frames
-				start_frame_ind, end_frame_ind = self.temporal_sample(total_frames)
+				start_frame_ind, end_frame_ind = self.temporal_sample(start_frame, end_frame)
 				assert end_frame_ind-start_frame_ind >= self.target_video_len
 				frame_indice = np.linspace(start_frame_ind, end_frame_ind-1, self.target_video_len, dtype=int)
 				video = v_reader.get_batch(frame_indice).asnumpy()

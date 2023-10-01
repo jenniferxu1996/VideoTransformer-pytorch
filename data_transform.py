@@ -488,6 +488,21 @@ class TemporalRandomCrop(object):
 		end_index = min(begin_index + self.size, total_frames)
 		return begin_index, end_index
 
+class TemporalRandomCropWithRange(object):
+	"""Temporally crop the given frame indices at a random location within the specified range.
+
+	Args:
+		size (int): Desired length of frames will be seen in the model.
+	"""
+
+	def __init__(self, size):
+		self.size = size
+
+	def __call__(self, start_frame, end_frame):
+		rand_end = max(start_frame, end_frame - self.size - 1)
+		begin_index = random.randint(start_frame, rand_end)
+		end_index = min(begin_index + self.size, end_frame)
+		return begin_index, end_index
 
 #  ------------------------------------------------------------
 #  ---------------------  AdvancedAugment  --------------------
