@@ -178,6 +178,10 @@ def init_from_vit_pretrain_(module,
 					elif copy_strategy == 'set_zero':
 						state_dict[new_key] = state_dict[old_key].clone().zero_()
 
+		state_dict_keys = list(state_dict.keys())
+		for key in state_dict_keys:
+			state_dict[key.replace('model.', '')] = state_dict.pop(key)
+
 		missing_keys,unexpected_keys = module.load_state_dict(state_dict, strict=False)
 		#print(f'missing_keys:{missing_keys}\n unexpected_keys:{unexpected_keys}')
 		print_on_rank_zero(f'missing_keys:{missing_keys}\n '

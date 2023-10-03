@@ -11,6 +11,7 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.plugins import DDPPlugin
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger
 import torch
 import torch.utils.data as data
 
@@ -207,6 +208,7 @@ def single_run():
 		find_unused_parameters = False
 
 	trainer = pl.Trainer(
+		logger=TensorBoardLogger(log_dir),
 		gpus=args.gpus, 
 		accelerator="ddp",
 		precision=16,

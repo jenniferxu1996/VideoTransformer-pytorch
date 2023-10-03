@@ -3,3 +3,4 @@ data/
 results/
 pretrained/
 lightning_logs/
+attention_map/
