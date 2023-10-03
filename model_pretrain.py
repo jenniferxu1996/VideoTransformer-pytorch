@@ -152,6 +152,9 @@ def parse_args():
 	parser.add_argument(
 		"-warmup_epochs", default=5, type=int,
 		help="Number of epochs for the linear learning-rate warm up.")
+	parser.add_argument(
+		"-exp_tag", default=None, type=str,
+		help="exp tag")
 
 	args = parser.parse_args()
 	
@@ -171,14 +174,17 @@ def single_run():
 
 	# Experiment Settings
 	ROOT_DIR = args.root_dir
-	exp_tag = hashlib.md5((f'objective_{args.objective}_arch_{args.arch}_lr_{args.lr}_'
-			   f'optim_{args.optim_type}_lr_schedule_{args.lr_schedule}_'
-			   f'fp16_{args.use_fp16}_weight_decay_{args.weight_decay}_'
-			   f'weight_decay_end_{args.weight_decay_end}_warmup_epochs_{args.warmup_epochs}_'
-			   f'pretrain_{args.pretrain_pth}_weights_from_{args.weights_from}_seed_{args.seed}_'
-			   f'img_size_{args.img_size}_num_frames_{args.num_frames}_eval_metrics_{args.eval_metrics}_'
-			   f'frame_interval_{args.frame_interval}_mixup_{args.mixup}_'
-			   f'multi_crop_{args.multi_crop}_auto_augment_{args.auto_augment}_').encode()).hexdigest()
+	if args.exp_tag is None:
+		exp_tag = hashlib.md5((f'objective_{args.objective}_arch_{args.arch}_lr_{args.lr}_'
+				   f'optim_{args.optim_type}_lr_schedule_{args.lr_schedule}_'
+				   f'fp16_{args.use_fp16}_weight_decay_{args.weight_decay}_'
+				   f'weight_decay_end_{args.weight_decay_end}_warmup_epochs_{args.warmup_epochs}_'
+				   f'pretrain_{args.pretrain_pth}_weights_from_{args.weights_from}_seed_{args.seed}_'
+				   f'img_size_{args.img_size}_num_frames_{args.num_frames}_eval_metrics_{args.eval_metrics}_'
+				   f'frame_interval_{args.frame_interval}_mixup_{args.mixup}_'
+				   f'multi_crop_{args.multi_crop}_auto_augment_{args.auto_augment}_').encode()).hexdigest()
+	else:
+		exp_tag = args.exp_tag
 	exp_dir = os.path.join(ROOT_DIR, f'results/{exp_tag}')
 	ckpt_dir = os.path.join(exp_dir, 'ckpt')
 	log_dir = os.path.join(exp_dir, 'log')
