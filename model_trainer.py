@@ -169,9 +169,10 @@ class VideoTransformer(pl.LightningModule):
 		total_grad_norm = torch.norm(torch.stack(layer_norm), norm_type)
 		return total_grad_norm
 	
-	def log_step_state(self, data_time, top1_acc=0, top5_acc=0):
+	def log_step_state(self, data_time, top1_acc=0, top5_acc=0, loss=0):
 		self.log("time",float(f'{time.perf_counter()-self.data_start:.3f}'),prog_bar=True)
 		self.log("data_time", data_time, prog_bar=True)
+		self.log("loss", loss)
 		if self.configs.objective == 'supervised':
 			self.log("top1_acc",top1_acc,on_step=True,on_epoch=False,prog_bar=True)
 			self.log("top5_acc",top5_acc,on_step=True,on_epoch=False,prog_bar=True)
@@ -241,6 +242,9 @@ class VideoTransformer(pl.LightningModule):
 			self.train_top1_acc.reset()
 			self.train_top5_acc.reset()
 
+			self.log('train_acc_top1', mean_top1_acc)
+			self.log('train_acc_top5', mean_top5_acc)
+
 		# save last checkpoint
 		save_path = osp.join(self.ckpt_dir, 'last_checkpoint.pth')
 		self.trainer.save_checkpoint(save_path)
@@ -278,6 +282,9 @@ class VideoTransformer(pl.LightningModule):
 					   f'top5_acc:{mean_top5_acc:.3f} of current validation epoch')
 			self.val_top1_acc.reset()
 			self.val_top5_acc.reset()
+
+			self.log('val_acc_top1', mean_top1_acc)
+			self.log('val_acc_top5', mean_top5_acc)
 
 			# save best checkpoint
 			if mean_top1_acc > self.max_top1_acc:
