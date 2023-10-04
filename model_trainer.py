@@ -213,7 +213,7 @@ class VideoTransformer(pl.LightningModule):
 			else:
 				top1_acc = self.train_top1_acc(preds.softmax(dim=-1), labels)
 				top5_acc = self.train_top5_acc(preds.softmax(dim=-1), labels)
-			self.log_step_state(data_time, top1_acc, top5_acc)
+			self.log_step_state(data_time, top1_acc, top5_acc, loss)
 			return {'loss': loss, 'data_time': data_time}
 	
 	def on_after_backward(self):
