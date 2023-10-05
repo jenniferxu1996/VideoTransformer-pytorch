@@ -447,8 +447,8 @@ class ViViT(nn.Module):
 											 self.pretrain_pth)
 			else:
 				raise TypeError(f'not support the pretrained weight {self.pretrain_pth}')
-			for p in self.parameters():
-				p.requires_grad = False
+			# for p in self.parameters():
+			# 	p.requires_grad = False
 
 	@torch.jit.ignore
 	def no_weight_decay_keywords(self):
