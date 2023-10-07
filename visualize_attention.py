@@ -178,10 +178,10 @@ def show_attn_color(image, attentions, th_attn, index=None, head=[0,1,2,3,4,5]):
 
 
 def get_attention_map(model, img, get_mask=False):
-	att_mat = model.get_last_selfattention(img)
+	att_mat = model.get_last_selfattention(img, spatial=True)
 
 	# Average the attention weights across all heads.
-	att_mat = torch.mean(att_mat, dim=1)
+	att_mat = torch.mean(att_mat, dim=1).cpu()
 
 	# To account for residual connections, we add an identity matrix to the
 	# attention matrix and re-normalize the weights.
@@ -203,9 +203,36 @@ def get_attention_map(model, img, get_mask=False):
 		result = cv2.resize(mask / mask.max(), (img.shape[-2], img.shape[-1]))
 	else:
 		mask = cv2.resize(mask / mask.max(), (img.shape[-2], img.shape[-1]))[..., np.newaxis]
-		result = (mask * (img[0, 0, ...].permute(1, 2, 0).numpy() * 255)).astype("uint8")
+		result = (mask * (img[0, 0, ...].permute(1, 2, 0).cpu().numpy() * 255)).astype("uint8")
 
 	return result
+
+def get_topk_grid(model, img, topk=10):
+	att_mat = model.get_last_selfattention(img, spatial=True)
+
+	# Average the attention weights across all heads.
+	att_mat = torch.mean(att_mat, dim=1).cpu()
+
+	# To account for residual connections, we add an identity matrix to the
+	# attention matrix and re-normalize the weights.
+	residual_att = torch.eye(att_mat.size(1))
+	aug_att_mat = att_mat + residual_att
+	aug_att_mat = aug_att_mat / aug_att_mat.sum(dim=-1).unsqueeze(-1)
+
+	# Recursively multiply the weight matrices
+	joint_attentions = torch.zeros(aug_att_mat.size())
+	joint_attentions[0] = aug_att_mat[0]
+
+	for n in range(1, aug_att_mat.size(0)):
+		joint_attentions[n] = torch.matmul(aug_att_mat[n], joint_attentions[n - 1])
+
+	v = joint_attentions[-1]
+	grid_size = int(np.sqrt(aug_att_mat.size(-1)))
+	mask = v[0, :].reshape(grid_size, grid_size).detach().numpy()
+	x, y = np.unravel_index(np.argsort(mask, axis=None), mask.shape)
+	x = x[-topk:][::-1]
+	y = y[-topk:][::-1]
+	return x, y
 
 
 def plot_attention_map(original_img, att_map):
@@ -302,5 +329,6 @@ if __name__ == '__main__':
 	w_featmap = video.shape[-2] // args.patch_size
 	h_featmap = video.shape[-1] // args.patch_size
 	result = get_attention_map(model, video.unsqueeze(0).to(device))
-	plot_attention_map(video[0].permute(1, 2, 0).numpy(), result)
+	plot_attention_map(video[0].permute(1, 2, 0).cpu().numpy(), result)
 	plt.show()
+	print(get_topk_grid(model, video.unsqueeze(0).to(device)))

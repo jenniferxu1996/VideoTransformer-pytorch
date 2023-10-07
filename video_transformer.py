@@ -533,7 +533,7 @@ class ViViT(nn.Module):
 		else:
 			return x[:, 1:].mean(1)
 
-	def get_last_selfattention(self, x):
+	def get_last_selfattention(self, x, spatial=False):
 		x, cls_tokens, b = self.prepare_tokens(x)
 		
 		if self.attention_type != 'fact_encoder':
@@ -541,7 +541,10 @@ class ViViT(nn.Module):
 		else:
 			# fact encoder - CRNN style
 			spatial_transformer, temporal_transformer, = *self.transformer_layers,
-			x = spatial_transformer(x)
+			x = spatial_transformer(x, return_attention=spatial)
+
+			if spatial:
+				return x[:,:,1:,1:]
 			
 			# Add Time Embedding
 			cls_tokens = x[:b, 0, :].unsqueeze(1)
