@@ -25,12 +25,12 @@ from matplotlib.patches import Polygon
 from torch.utils.data import DataLoader
 
 import utils
-from video_transformer import TimeSformer
+from video_transformer import TimeSformer, ViViT
 import data_transform as T
 from dataset import DecordInit
 import weight_init
 
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 
 company_colors = [
 	(0,160,215), # blue
@@ -68,7 +68,7 @@ def show_attn(img, attentions, w_featmap, h_featmap, frame_index, index=None):
 	nh = attentions.shape[0] # number of head
 
 	# we keep only the output patch attention
-	attentions = attentions[:, 0, 1:].reshape(nh, -1)
+	attentions = attentions.reshape(nh, -1)
 
 	if args.threshold is not None:
 		# we keep only a certain percentage of the mass
@@ -176,9 +176,49 @@ def show_attn_color(image, attentions, th_attn, index=None, head=[0,1,2,3,4,5]):
 
 	return attn_color
 
+
+def get_attention_map(model, img, get_mask=False):
+	att_mat = model.get_last_selfattention(img)
+
+	# Average the attention weights across all heads.
+	att_mat = torch.mean(att_mat, dim=1)
+
+	# To account for residual connections, we add an identity matrix to the
+	# attention matrix and re-normalize the weights.
+	residual_att = torch.eye(att_mat.size(1))
+	aug_att_mat = att_mat + residual_att
+	aug_att_mat = aug_att_mat / aug_att_mat.sum(dim=-1).unsqueeze(-1)
+
+	# Recursively multiply the weight matrices
+	joint_attentions = torch.zeros(aug_att_mat.size())
+	joint_attentions[0] = aug_att_mat[0]
+
+	for n in range(1, aug_att_mat.size(0)):
+		joint_attentions[n] = torch.matmul(aug_att_mat[n], joint_attentions[n - 1])
+
+	v = joint_attentions[-1]
+	grid_size = int(np.sqrt(aug_att_mat.size(-1)))
+	mask = v[0, :].reshape(grid_size, grid_size).detach().numpy()
+	if get_mask:
+		result = cv2.resize(mask / mask.max(), (img.shape[-2], img.shape[-1]))
+	else:
+		mask = cv2.resize(mask / mask.max(), (img.shape[-2], img.shape[-1]))[..., np.newaxis]
+		result = (mask * (img[0, 0, ...].permute(1, 2, 0).numpy() * 255)).astype("uint8")
+
+	return result
+
+
+def plot_attention_map(original_img, att_map):
+	fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(16, 16))
+	ax1.set_title('Original')
+	ax2.set_title('Attention Map Last Layer')
+	_ = ax1.imshow(original_img)
+	_ = ax2.imshow(att_map)
+
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser('Visualize Self-Attention maps')
-	parser.add_argument('--arch', default='timesformer', type=str, choices=['timesformer'], help='Architecture.')
+	parser.add_argument('--arch', default='timesformer', type=str, choices=['timesformer', 'vivit'], help='Architecture.')
 	parser.add_argument('--pretrained_weights', default='', type=str, help="""Path to pretrained 
 		weights to evaluate. Set to `download` to automatically load the pretrained DINO from url.
 		Otherwise the model is randomly initialized""")
@@ -187,15 +227,18 @@ if __name__ == '__main__':
 		obtained by thresholding the self-attention maps to keep xx% of the mass.""")
 	parser.add_argument("--patch_size", type=int, default=16, help="""patch size.""")
 	parser.add_argument("--image_size", default=(224, 224), type=int, nargs="+", help="Resize image.")
+	parser.add_argument("--num_class", default=400, type=int, help="num classes")
+	parser.add_argument('--num_frames', type=int, required=True, help='the mumber of frame sampling')
+	parser.add_argument('--weights_from', type=str, default='imagenet', help='the pretrain params from [imagenet, kinetics]')
 	args = parser.parse_args()
 
 	#utils.fix_random_seeds(0)
 	device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 	
 	# build model
-	num_frames = 8
-	frame_interval = 32
-	num_class = 400
+	num_frames = args.num_frames
+	frame_interval = 16
+	num_class = args.num_class
 	arch = args.arch # turn to vivit for initializing vivit model
 	if arch == 'timesformer':
 		pretrain_pth = args.pretrained_weights #'./timesformer_k400.pth'
@@ -206,13 +249,28 @@ if __name__ == '__main__':
 							in_channels=3,
 							attention_type='divided_space_time',
 							return_cls_token=True)
+	elif arch == 'vivit':
+		pretrain_pth = args.pretrained_weights
+		model = ViViT(
+			pretrain_pth=pretrain_pth,
+			img_size=args.image_size,
+			num_frames=num_frames)
 	else:
 		raise TypeError(f'not supported arch type {arch}, chosen in (timesformer, vivit)')
 
-	msg_trans = weight_init.init_from_kinetics_pretrain_(model, pretrain_pth, init_module='transformer')
+	if args.weights_from == 'imagenet':
+		weight_init.init_from_vit_pretrain_(model,
+								pretrain_pth,
+								'Conv3d',
+								'fact_encoder',
+								'repeat')
+	elif args.weights_from == 'kinetics':
+		weight_init.init_from_kinetics_pretrain_(model, pretrain_pth)
+	else:
+		raise TypeError(f'not supported weights_from {args.weights_from}, chosen in (imagenet, kinetics)')
 	model.eval()
 	model = model.to(device)
-	print(f'load model finished, the missing key of transformer is:{msg_trans[0]}, unexpect_key is:{msg_trans[1]}')
+	print('load model finished')
 
 	# build data
 	video_path = './demo/YABnJL_bDzw.mp4'
@@ -243,14 +301,6 @@ if __name__ == '__main__':
 	# extract the attention maps
 	w_featmap = video.shape[-2] // args.patch_size
 	h_featmap = video.shape[-1] // args.patch_size
-	attentions = model.get_last_selfattention(video.unsqueeze(0).to(device)) #
-	print(attentions.shape) # [8 12 197 197]
-	for i,(frame, attention) in enumerate(zip(video, attentions)):
-		# make the video frame divisible by the patch size
-		attentions, th_attn, pic_i, pic_attn = show_attn(frame, attention, w_featmap, h_featmap, frame_index=i)
-		pic_attn_color = show_attn_color(frame.permute(1, 2, 0).cpu().numpy(), attentions, th_attn)
-		final_pic = Image.new('RGB', (pic_i.size[1] * 2 + pic_attn.size[0], pic_i.size[1]))
-		final_pic.paste(pic_i, (0, 0))
-		final_pic.paste(pic_attn_color, (pic_i.size[1], 0))
-		final_pic.paste(pic_attn, (pic_i.size[1] * 2, 0))
-		final_pic.save(os.path.join(args.output_dir, f"attn_img{i}.png"))
+	result = get_attention_map(model, video.unsqueeze(0).to(device))
+	plot_attention_map(video[0].permute(1, 2, 0).numpy(), result)
+	plt.show()

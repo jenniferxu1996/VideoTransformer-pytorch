@@ -88,6 +88,8 @@ python model_pretrain.py \
 	-objective supervised -root_dir $ROOT_DIR -train_data_path $TRAIN_DATA_PATH \
 	-val_data_path $VAL_DATA_PATH -pretrain_pth $PRETRAIN_WEIGHTS -weights_from imagenet
 
+set PL_TORCH_DISTRIBUTED_BACKEND=gloo
+python model_pretrain.py -lr 0.005 -epoch 30 -batch_size 2 -num_workers 0 -num_frames 16 -frame_interval 16 -num_class 28 -arch vivit -attention_type fact_encoder -optim_type adamw -lr_schedule cosine -objective supervised -root_dir . -train_data_path data/mpii_cooking/train.txt -val_data_path data/mpii_cooking/val.txt -pretrain_pth pretrained/vit_base_patch16_224.pth -weights_from imagenet -class_path data/mpii_cooking/classes.txt -grad_clip 0.3 -weight_decay 0.0001
 ```
 The minimal folder structure will look like as belows.
 ```
