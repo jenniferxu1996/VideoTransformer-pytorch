@@ -283,6 +283,9 @@ class VideoTransformer(pl.LightningModule):
 			self.val_top1_acc.reset()
 			self.val_top5_acc.reset()
 
+			if self.trainer.sanity_checking:
+				return
+
 			self.log('val_acc_top1', mean_top1_acc)
 			self.log('val_acc_top5', mean_top5_acc)
 
