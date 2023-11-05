@@ -44,7 +44,7 @@ if __name__ == '__main__':
     device = torch.device("cpu")
 
     # params
-    video_path = './demo/YABnJL_bDzw.mp4'
+    video_path = './demo/s08-d02-cam-002.avi'
     num_frames = 16
     frame_interval = 16
     img_size = (224, 224)
