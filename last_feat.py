@@ -69,7 +69,7 @@ if __name__ == '__main__':
     annotations = pd.read_csv(annotation_path)
 
     vivit_feature_df = pd.DataFrame(columns=['sample_id', 'features'])
-    for video_clip in tqdm.tqdm(video_clips[:1], desc='process video'):
+    for video_clip in tqdm.tqdm(video_clips, desc='process video'):
         video_name = os.path.splitext(video_clip)[0]
         video_annotation = annotations.loc[annotations['fileName'] == video_name]
         video_clip_path = os.path.join(raw_video_path, video_clip)
