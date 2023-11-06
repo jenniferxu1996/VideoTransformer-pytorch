@@ -7,7 +7,6 @@ import torch
 import data_transform as T
 from dataset import DecordInit
 from video_transformer import ViViT
-import weight_init
 
 
 def load_last_feature_for_a_sample(video_path, model, temporal_sample, video_decoder, device, num_frames=16):
@@ -62,7 +61,7 @@ if __name__ == '__main__':
     for video_clip in video_clips:
         video_clip_path = os.path.join(video_clips_path, video_clip)
         logits = load_last_feature_for_a_sample(video_clip_path, model, temporal_sample, video_decoder, device)
-        feature_dic = {'sample_id': os.path.split(video_clip)[0], 'features': logits}
+        feature_dic = {'sample_id': os.path.splitext(video_clip)[0], 'features': logits}
         vivit_feature_df = pd.concat([ vivit_feature_df, pd.DataFrame([feature_dic])], ignore_index=True)
     print(vivit_feature_df)
     vivit_feature_df.to_pickle('vivit_feature.pkl')
