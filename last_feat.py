@@ -40,6 +40,7 @@ def load_last_feature_for_a_sample(video_name, video_path, video_annotations, mo
 if __name__ == '__main__':
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     ckpt_path = "pretrained/vit_base_patch16_224.pth"
+    weights_from = "imagenet"  # kinetics
     num_frames = 16
     img_size = (224, 224)
     frame_interval = 16
@@ -51,7 +52,8 @@ if __name__ == '__main__':
     # load the trained model
     model = ViViT(pretrain_pth=ckpt_path,
                   img_size=img_size,
-                  num_frames=num_frames)
+                  num_frames=num_frames,
+                  weights_from=weights_from)
     model.eval()
     model = model.to(device)
     # declare data preprocessing methods
