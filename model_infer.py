@@ -1,3 +1,4 @@
+import json
 import os
 
 import numpy as np
@@ -137,6 +138,8 @@ if __name__ == '__main__':
         all_preds.append(preds)
         all_targets.append(targets)
 
+    with open(f'cls_res_{mode}.json', 'w') as f:
+        json.dump(classification_report(np.concatenate(all_targets), np.concatenate(all_preds)), f)
     print(classification_report(np.concatenate(all_targets), np.concatenate(all_preds)))
 
 
