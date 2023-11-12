@@ -11,6 +11,17 @@ from video_transformer import ViViT
 from transformer import ClassificationHead
 from sklearn.metrics import classification_report
 
+VALID = ['s21-d21-cam-002', 's21-d23-cam-002', 's21-d27-cam-002', 's21-d28-cam-002', 's21-d29-cam-002', 's21-d35-cam-002',
+         's21-d39-cam-002', 's21-d40-cam-002', 's21-d42-cam-002', 's21-d43-cam-002', 's21-d45-cam-002', 's21-d49-cam-002',
+         's21-d50-cam-002', 's21-d52-cam-002', 's21-d53-cam-002', 's21-d55-cam-002', 's21-d63-cam-002']
+TEST = ['s22-d23-cam-002', 's22-d25-cam-002', 's22-d26-cam-002', 's22-d29-cam-002', 's22-d31-cam-002',
+        's22-d34-cam-002', 's22-d35-cam-002', 's22-d43-cam-002', 's22-d46-cam-002', 's22-d48-cam-002', 's22-d53-cam-002',
+        's22-d55-cam-002', 's28-d23-cam-002', 's28-d25-cam-002', 's28-d27-cam-002', 's28-d39-cam-002', 's28-d46-cam-002',
+        's28-d51-cam-002', 's28-d70-cam-002', 's28-d74-cam-002', 's29-d29-cam-002', 's29-d31-cam-002', 's29-d39-cam-002',
+        's29-d42-cam-002', 's29-d49-cam-002', 's29-d50-cam-002', 's29-d52-cam-002', 's29-d71-cam-002', 's33-d23-cam-002',
+        's33-d27-cam-002', 's33-d45-cam-002', 's33-d49-cam-002', 's33-d50-cam-002', 's33-d54-cam-002', 's34-d21-cam-002',
+        's34-d28-cam-002', 's34-d34-cam-002', 's34-d40-cam-002', 's34-d41-cam-002', 's34-d63-cam-002', 's34-d69-cam-002',
+        's34-d73-cam-002']
 
 def infer_sample(video_path, video_annotations, model, cls_head, temporal_sample, video_decoder, device, cls_map, num_frames=16, batch_size=8):
     # load video data and apply data preprocessing methods
@@ -61,6 +72,7 @@ if __name__ == '__main__':
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     ckpt_path = "pretrained/ep_112_top1_acc_0.510.pth"
     weights_from = "kinetics"  # imagenet
+    mode = "test"
     num_frames = 16
     img_size = (224, 224)
     frame_interval = 16
@@ -106,6 +118,12 @@ if __name__ == '__main__':
     video_decoder = DecordInit()
 
     video_clips = os.listdir(raw_video_path)
+    if mode == 'test':
+        video_clips = [each_sample for each_sample in os.listdir(raw_video_path) if os.path.splitext(each_sample)[0] in TEST]
+    elif mode == 'valid':
+        video_clips = [each_sample for each_sample in os.listdir(raw_video_path) if os.path.splitext(each_sample)[0] in VALID]
+    else:
+        video_clips = [each_sample for each_sample in os.listdir(raw_video_path) if os.path.splitext(each_sample)[0] not in VALID + TEST]
     annotations = pd.read_csv(annotation_path)
 
     all_preds = []
