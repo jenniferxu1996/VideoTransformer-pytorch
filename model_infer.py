@@ -10,7 +10,47 @@ import data_transform as T
 from dataset import DecordInit
 from video_transformer import ViViT
 from transformer import ClassificationHead
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score, f1_score, confusion_matrix, multilabel_confusion_matrix, matthews_corrcoef, precision_recall_curve, average_precision_score
+from sklearn.preprocessing import label_binarize
+
+
+def get_average_precision_value(y_true, y_prob, class_num):
+    precision = {}
+    recall = {}
+    ap = {}
+    print(y_true.shape, y_prob.shape)
+    for i in range(class_num):
+        precision[i], recall[i], _ = precision_recall_curve(y_true[:, i], y_prob[:, i])
+        ap[i] = average_precision_score(y_true[:, i], y_prob[:, i])
+        # print(type(precision[i]), type(recall[i]), type(ap[i]))
+        precision[i] = list(precision[i])
+        recall[i] = list(recall[i])
+        ap[i] = float(ap[i])
+    return precision, recall, ap
+
+
+def get_evaluation_metrics(y_true, y_prob, y_predict, class_num):
+    # Get all the evaluation metrics for the inference data sample
+    precision_all, recall_all, ap = get_average_precision_value(y_true, y_prob, class_num)
+    # Convert the prediction sequence to one-hot representation
+    y_predict_onehot = label_binarize(y_predict, classes=[i for i in range(class_num)])
+    multi_confusion = multilabel_confusion_matrix(y_true, y_predict_onehot)
+    # print(f"the shape of multi_confusion = {len(multi_confusion)}")
+    # Convert the one-hot representation for ground truth to the label sequence
+    y_true_sequence = []
+    for i in range(len(y_true)):
+        for label in range(0, class_num):
+            if y_true[i][label] == 1:
+                y_true_sequence.append(label)
+    # print(y_true_sequence)
+    labels = [i for i in range(0, class_num)]
+    result_report = classification_report(y_true_sequence, y_predict, labels=labels)
+    confusion = confusion_matrix(y_true_sequence, y_predict, labels=labels)
+    mcc = matthews_corrcoef(y_true_sequence, y_predict)
+    f1 = f1_score(y_true_sequence, y_predict, average="weighted")
+    acc = accuracy_score(y_true_sequence, y_predict)
+    # print(type(precision), type(recall), type(ap), type(multi_confusion), type(confusion))
+    return precision_all, recall_all, ap, result_report, multi_confusion.tolist(), confusion.tolist(), mcc, acc, f1
 
 VALID = ['s21-d21-cam-002', 's21-d23-cam-002', 's21-d27-cam-002', 's21-d28-cam-002', 's21-d29-cam-002', 's21-d35-cam-002',
          's21-d39-cam-002', 's21-d40-cam-002', 's21-d42-cam-002', 's21-d43-cam-002', 's21-d45-cam-002', 's21-d49-cam-002',
@@ -41,6 +81,7 @@ def infer_sample(video_path, video_annotations, model, cls_head, temporal_sample
 
     targets = []
     preds = []
+    probs = []
     for i in range(0, len(videos), batch_size):
         last = min(i+batch_size, len(videos))
         batch = torch.stack(videos[i: last]).to(device)
@@ -50,9 +91,10 @@ def infer_sample(video_path, video_annotations, model, cls_head, temporal_sample
             label = video_annotations.iloc[index]['activity']
             target = cls_map[label]
             p = np.argmax(pred[index-i])
-            targets.append(target)
+            targets.append([1 if target == j else 0 for j in range(num_class)])
             preds.append(p)
-    return targets, preds
+            probs.append(pred[index-i])
+    return targets, preds, probs
 
 
 def replace_state_dict(state_dict):
@@ -129,17 +171,28 @@ if __name__ == '__main__':
 
     all_preds = []
     all_targets = []
+    all_probs = []
     for video_clip in tqdm.tqdm(video_clips, desc='process video'):
         video_name = os.path.splitext(video_clip)[0]
         video_annotation = annotations.loc[annotations['fileName'] == video_name]
         video_clip_path = os.path.join(raw_video_path, video_clip)
 
-        targets, preds = infer_sample(video_clip_path, video_annotation, model, cls_head, temporal_sample, video_decoder, device, cls_map, num_frames=num_frames, batch_size=batch_size)
+        targets, preds, probs = infer_sample(video_clip_path, video_annotation, model, cls_head, temporal_sample, video_decoder, device, cls_map, num_frames=num_frames, batch_size=batch_size)
         all_preds.append(preds)
         all_targets.append(targets)
+        all_probs.append(probs)
 
-    with open(f'cls_res_{mode}.json', 'w') as f:
-        json.dump(classification_report(np.concatenate(all_targets), np.concatenate(all_preds)), f)
-    print(classification_report(np.concatenate(all_targets), np.concatenate(all_preds)))
+    all_preds = np.concatenate(all_preds)
+    all_targets = np.concatenate(all_targets)
+    all_probs = np.concatenate(all_probs)
 
+    precision, recall, ap, result_report, multi_confusion, confusion, mcc, acc, f1 = get_evaluation_metrics(all_targets, all_probs, all_preds, num_class)
 
+    with open(f'result.txt', 'w') as f:
+        print("average precision:", ap, file=f)
+        print("result report:", result_report, file=f)
+        print("confusion matrix for multiclassification:", multi_confusion, file=f)
+        print("confusion matrix:", confusion, file=f)
+        print("matthews coefficient:", mcc, file=f)
+        print("acc:", acc, file=f)
+        print("macro f1:", f1, file=f)
